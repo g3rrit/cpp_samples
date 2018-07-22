@@ -91,7 +91,7 @@ template<class T> T& Thread_map<T>::erase(const std::string &key)
     return value;
 }
 
-template<class T> bool Thread_map<T>::for_each(std::function<bool (Thread_map<T>&, std::string&, T&)> fun)
+template<class T> bool Thread_map<T>::for_each(std::function<bool (Thread_map<T>4&, std::string&, T&)> fun)
 {
     this->map_mutex.lock();
     for(std::pair<std::string, T> element : this->map)
