@@ -1,110 +1,131 @@
-#ifndef THREAD_MAP_H
-#define THREAD_MAP_H
+#ifndef THREAD_MAP_HPP
+#define THREAD_MAP_HPP
 
-#include <map>
-#include <functional>
 #include <mutex>
+#include <functional>
+#include <string>
 
-template <class T>class Thread_map
+#define map_for_each for(thread_map_node_t *entry = this->head; entry->next; entry = entry->next)
+
+template<class T> class thread_map_t
 {
 private:
-    std::map<std::string, T> map;
+    struct thread_map_node_t
+    {
+        std::string key;
+        thread_map_node_t *next;
+        T& value;
+
+        thread_map_node_t(std::string& key, T& value, thread_map_node_t* next) :
+            key(key), 
+            value(value),
+            next(next)
+        {
+        }
+    };
+
     std::mutex map_mutex;
+    thread_map_node_t *head = nullptr;
+    size_t size = 0;
 
 public:
+    thread_map_t() {}
 
-    ~Thread_map();
-
-    T& at(size_t pos);
-    T& operator[](const std::string &key);
-
-    size_t size() const;
-    bool empty() const;
-
-    void clear();
-    void insert(std::pair<std::string, T> pair);
-    T& erase(const std::string &key);
-
-    bool for_each(std::function<bool (Thread_map<T>&, std::string&, T&)> fun);
-};
-
-template<class T> Thread_map<T>::~Thread_map()
-{
-    this->map.clear();
-}
-
-template<class T> T& Thread_map<T>::at(size_t pos)
-{
-    T *value;
-    this->map_mutex.lock();
-    value = this->map.at(pos);
-    this->map_mutex.unlock();
-    return value;
-}
-
-template<class T> T& Thread_map<T>::operator[](const std::string &key)
-{
-    this->map_mutex.lock();
-    T &value = this->map[key];
-    this->map_mutex.unlock();
-    return value;
-}
-
-template<class T> size_t Thread_map<T>::size() const
-{
-    size_t size;
-    this->map_mutex.lock();
-    size = this->map.size();
-    this->map_mutex.unlock();
-    return size;
-}
-
-template<class T> bool Thread_map<T>::empty() const
-{
-    bool empty; 
-    this->map_mutex.lock();
-    empty = this->map.empty();
-    this->map_mutex.unlock();
-    return empty;
-}
-
-template<class T> void Thread_map<T>::clear()
-{
-    this->map_mutex.lock();
-    this->map.clear();
-    this->map_mutex.unlock();
-}
-
-template<class T> void Thread_map<T>::insert(std::pair<std::string, T> pair)
-{
-    this->map_mutex.lock();
-    this->map.insert(pair);
-    this->map_mutex.unlock();
-}
-
-template<class T> T& Thread_map<T>::erase(const std::string &key)
-{
-    T *value;
-    this->map_mutex.lock();
-    value = this->map.erase(key);
-    this->map_mutex.unlock();
-    return value;
-}
-
-template<class T> bool Thread_map<T>::for_each(std::function<bool (Thread_map<T>4&, std::string&, T&)> fun)
-{
-    this->map_mutex.lock();
-    for(std::pair<std::string, T> element : this->map)
+    ~thread_map_t() 
     {
-        if(fun(*this, element.first, element.second))
-        {
-            this->map_mutex.unlock();
-            return true;
-        }
+        clear();
     }
-    this->map_mutex.unlock();
-    return false;
-}
+
+    void clear()
+    {
+        thread_map_node_t *f_entry = nullptr;
+
+        this->map_mutex.lock();
+        map_for_each
+        {
+            if(f_entry != nullptr)
+                delete f_entry;
+
+            f_entry = entry;
+        }
+
+        if(f_entry != nullptr)
+            delete f_entry;
+
+        this->size = 0;
+        this->head = nullptr;
+        this->map_mutex.unlock();
+    }
+
+    void add(std::string& key, T& value)
+    {
+        this->map_mutex.lock();
+        this->head = new thread_map_node_t(key, value, this->head);
+        this->size++;
+        this->map_mutex.unlock();
+    }
+
+    T* remove(std::string& key)
+    {
+        thread_map_node_t *p_entry = nullptr;
+
+        this->map_mutext.lock();
+        map_for_each
+        {
+            if(key.compare(entry->key) == 0)
+            {
+                T* res = &entry->value;
+                if(p_entry != nullptr)
+                    p_entry->next = entry->next;
+                else 
+                    this->head = entry->next;
+
+    	        this->size--;
+                this->map_mutex.unlock();
+                return res;
+            }
+
+            p_entry = entry;
+        }
+        this->map_mutex.unlock();
+
+        return nullptr;
+    }
+
+    T* get(std::string& key)
+    {
+        this->map_mutex.lock();
+        map_for_each
+        {
+            if(key.compare(entry->key))
+            {
+                T* res = &entry->value;
+                this->map_mutex.unlock();
+                return res;
+            }
+        }
+        this->map_mutex.unlock();
+
+        return nullptr;
+    }
+
+    bool for_each(std::function<bool (std::string& key, T& value)> fun)
+    {
+        this->map_mutex.lock();
+        map_for_each
+        {
+            if(fun(entry->key, entry->value))
+            {
+                this->map_mutex.unlock();
+                return true;
+            }
+        }
+        this->map_mutex.unlock();
+
+        return false;
+    }
+
+};
 
 
 #endif

@@ -5,42 +5,38 @@
 
 #include "thread_map/thread_map.hpp"
 #include <map>
+#include <string>
+#include <chrono>
 
 int main()
 {
-    Thread_map<std::string> mmap;
+    thread_map_t<std::string> map;
 
-    std::string *key = new std::string("Sdf");
+    std::thread([&] () -> void {
+        int count = 0;
+        for(int i = 0; i< 10; i++)
+        {
+            using namespace std::chrono_literals;
+            std::string key = "key" + std::to_string(count);
+            std::string *value = new std::string("value" + std::to_string(count));
+            map.add(key, *value);
+            count++;
+            std::this_thread::sleep_for(1s);
+        }
 
-    //mmap.insert(std::pair<std::string, std::string>(std::string("sdfs"), std::string("sdfsdf")));
-
-    mmap[*key] = "sdfs";
-    mmap["key2"] = "value2";
-    mmap["key3"] = "value3";
-    mmap["key4"] = "value4";
-    mmap["key5"] = "value5";
-
-
-    std::map<std::string, std::string> map;
-    map["mkey"] = "value";
+    }).detach();
 
     for(int i = 0; i < 10; i++)
     {
-        std::thread ([&] () -> void {
-            std::cout << "hello world" << mmap["Sdf"] << std::endl;
-        }).detach();
-    }
+        std::cout << "for each: " << i << std::endl;
 
-    int count = 0;
-
-    mmap.for_each([&] (Thread_map<std::string>& map, std::string& key, std::string& value) -> bool {
-        std::cout << "key: " << key << " value: " << value << std::endl;
-        count++;
-        if(count >= 2)
-            return true;
-        else 
+        using namespace std::chrono_literals;
+        map.for_each([&] (std::string& key, std::string& value) -> bool {
+            std::cout << "key: " << key << " value: " << value << std::endl;
             return false;
-    });
-    
+        });
+        std::this_thread::sleep_for(1s);
+    }
+   
     return 0;
 }
