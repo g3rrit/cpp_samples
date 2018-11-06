@@ -1,5 +1,7 @@
 #include <cstddef>
 #include <new>
+#include <cstdint>
+#include <cstdio>
 
 template<typename T>
 class object_traits {
@@ -55,19 +57,21 @@ struct max_allocations {
 */
 
 #define POOL_BUFFER_SIZE 1024
-std::byte pool_buffer[POOL_BUFFER_SIZE];
+uint8_t pool_buffer[POOL_BUFFER_SIZE];
 size_t pool_buffer_pos = 0;
 
 
-template<typename T>
+template<typename T, uint8_t* pb, size_t pb_size>
 class pool {
+private:
+    size_t pb_pos = 0;
 public:
 
     ALLOCATOR_TRAITS(T)
 
     template<typename U>        
     struct rebind {
-        typedef pool<U> other;
+        typedef pool<U, pb, pb_size> other;
     };
 
     //default constructor
@@ -75,22 +79,24 @@ public:
 
     //copy constructor
     template<typename U>
-    pool(pool<U> const& other) {}
+    pool(pool<U, pb, pb_size> const& other) {}
 
     //allocate memory
     pointer allocate(size_type count, const_pointer /* hint */ = 0) {
         size_t size = count * sizeof(type);
-        size_t last_pos = pool_buffer_pos;
-        if(last_pos + size >= POOL_BUFFER_SIZE) {
+        size_t last_pos = pb_pos;
+        if(last_pos + size >= pb_size) {
             throw std::bad_alloc();
         }
-        pool_buffer_pos = last_pos + size;
-        return static_cast<pointer>(pool_buffer + last_pos);
+        pb_pos = last_pos + size;
+        printf("allocating mem: %p\n", pb + last_pos);
+        return reinterpret_cast<pointer>(pb + last_pos);
     }
 
     //deallocate memory
     void deallocate(pointer ptr, size_type /* count */) {
-        pool_buffer_pos = static_cast<size_t>(ptr - pool_buffer);
+        printf("deallocating mem: %p\n", ptr);
+        //pool_buffer_pos = static_cast<size_t>(ptr - pool_buffer);
     }
 
     //max number of objects that can be allocated in one call
@@ -111,7 +117,7 @@ public:
 
 
 template <typename T,
-        typename PolicyT = pool<T>,
+        typename PolicyT,
         typename TraitsT = object_traits<T> >
 class allocator : public PolicyT, public TraitsT {
 
@@ -145,3 +151,59 @@ public:
 
 };
 
+
+/*
+//Two allocators are not equal unless a specialization says so
+template<typename T, typename PolicyT, typename TraitsT,
+    typename U, typename PolicyU, typename TraitsU>
+bool operator==(allocator<T, PolicyT, TraitsT> const& left,
+        allocator<U, PolicyU, TraitsU> const& right)
+{
+    return false;
+}
+
+//Also implement inequality
+template<typename T, typename PolicyT, typename TraitsT,
+    typename U, typename PolicyU, typename TraitsU>
+bool operator!=(allocator<T, PolicyT, TraitsT> const& left,
+        allocator<U, PolicyU, TraitsU> const& right)
+{
+    return !(left == right);
+}
+
+//Comparing an allocator to anything else should not show equality
+template<typename T, typename PolicyT, typename TraitsT,
+    typename OtherAllocator>
+bool operator==(allocator<T, PolicyT, TraitsT> const& left,
+        OtherAllocator const& right)
+{
+    return false;
+}
+
+//Also implement inequality
+template<typename T, typename PolicyT, typename TraitsT,
+    typename OtherAllocator>
+bool operator!=(allocator<T, PolicyT, TraitsT> const& left,
+        OtherAllocator const& right)
+{
+    return !(left == right);
+}
+
+//Specialize for the pool policy
+template<typename T, typename TraitsT,
+    typename U, typename TraitsU>
+bool operator==(allocator<T, pool<T>, TraitsT> const& left,
+        allocator<U, pool<U>, TraitsU> const& right)
+{
+    return true;
+}
+
+//Also implement inequality
+template<typename T, typename TraitsT,
+    typename U, typename TraitsU>
+bool operator!=(allocator<T, pool<T>, TraitsT> const& left,
+        allocator<U, pool<U>, TraitsU> const& right)
+{
+    return !(left == right);
+} 
+*/
