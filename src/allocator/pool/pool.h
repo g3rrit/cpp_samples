@@ -1,12 +1,51 @@
+#include <cstddef>
+#include <new>
+
+template<typename T>
+class object_traits {
+
+public:
+
+    typedef T type;
+     
+    template<typename U>
+    struct rebind {
+        typedef object_traits<U> other;
+    };
+
+    //constructor 
+    object_traits(void) {} 
+
+    //copy construtor
+    template<typename U>
+        object_traits(object_traits<U> const& other) {}
+
+    //address oj object
+    type* address(type& obj) const { return &obj; }
+    type const* address(type const& obj) const { return &obj; }
+
+    //construct object
+    void construct(type* ptr, type const& ref) const {
+        //in place copy constructor
+        new(ptr) type(ref);
+    }
+
+    //destroy object
+    void destroy(type* ptr) const {
+        //call destructor
+        ptr->~type();
+    }
+};
+
 #define ALLOCATOR_TRAITS(T)                         \
     typedef T                   type;               \
     typedef type                value_type;         \
     typedef value_type*         pointer;            \
     typedef value_type const*   const_pointer;      \
     typedef value_type&         reference;          \
-    typedef value_type const&   const_refernce;     \
+    typedef value_type const&   const_reference;     \
     typedef std::size_t         size_type;          \
-    typedef std::ptrdiff_t      differnce_type;
+    typedef std::ptrdiff_t      difference_type;
 
 /*
 template<typename T>
@@ -14,6 +53,11 @@ struct max_allocations {
     enum { value = static_cast<std::size>(-1) / sizeof(T) };
 };
 */
+
+#define POOL_BUFFER_SIZE 1024
+std::byte pool_buffer[POOL_BUFFER_SIZE];
+size_t pool_buffer_pos = 0;
+
 
 template<typename T>
 class pool {
@@ -25,10 +69,6 @@ public:
     struct rebind {
         typedef pool<U> other;
     };
-
-#define POOL_BUFFER_SIZE 1024
-    static std::byte pool_buffer[POOL_BUFFER_SIZE];
-    static size_t pool_buffer_pos = 0;
 
     //default constructor
     pool(void) {}
@@ -55,7 +95,7 @@ public:
 
     //max number of objects that can be allocated in one call
     size_type max_size(void) const {
-        return static_cast<size_t>(POOLL_BUFFER_SIZE / sizeof(T));
+        return static_cast<size_t>(POOL_BUFFER_SIZE / sizeof(T));
     }
 };
 
@@ -85,7 +125,23 @@ public:
         
     template<typename U>
     struct rebind {
+        typedef allocator<U,
+                typename Policy::template rebind<U>::other,
+                typename Traits::template rebind<U>::other
+                    > other;
     };
+
+    //constructor
+    allocator(void) {}
+
+    //copy constructor
+    template<typename U,
+        typename PolicyU,
+        typename TraitsU>
+    allocator(allocator<U,
+            PolicyU, TraitsU> const& other) : 
+        Policy(other),
+        Traits(other) {}
 
 };
 
