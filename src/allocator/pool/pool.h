@@ -56,30 +56,34 @@ struct max_allocations {
 };
 */
 
+/*
 #define POOL_BUFFER_SIZE 1024
 uint8_t pool_buffer[POOL_BUFFER_SIZE];
 size_t pool_buffer_pos = 0;
+*/
 
-
-template<typename T, uint8_t* pb, size_t pb_size>
+template<typename T>
 class pool {
 private:
     size_t pb_pos = 0;
+    uint8_t *pb;
+    size_t pb_size;
 public:
 
     ALLOCATOR_TRAITS(T)
 
     template<typename U>        
     struct rebind {
-        typedef pool<U, pb, pb_size> other;
+        typedef pool<U> other;
     };
 
     //default constructor
-    pool(void) {}
+    pool(uint8_t *_pb, size_t _pb_size) :
+        pb(_pb), pb_size(_pb_size){}
 
     //copy constructor
     template<typename U>
-    pool(pool<U, pb, pb_size> const& other) {}
+    pool(pool<U> const& other) {}
 
     //allocate memory
     pointer allocate(size_type count, const_pointer /* hint */ = 0) {
@@ -96,12 +100,12 @@ public:
     //deallocate memory
     void deallocate(pointer ptr, size_type /* count */) {
         printf("deallocating mem: %p\n", ptr);
-        //pool_buffer_pos = static_cast<size_t>(ptr - pool_buffer);
+        pb_pos = reinterpret_cast<size_t>(ptr) - reinterpret_cast<size_t>(pb);
     }
 
     //max number of objects that can be allocated in one call
     size_type max_size(void) const {
-        return static_cast<size_t>(POOL_BUFFER_SIZE / sizeof(T));
+        return static_cast<size_t>(pb_size / sizeof(T));
     }
 };
 
@@ -117,7 +121,7 @@ public:
 
 
 template <typename T,
-        typename PolicyT,
+        typename PolicyT = pool<T>,
         typename TraitsT = object_traits<T> >
 class allocator : public PolicyT, public TraitsT {
 
@@ -138,7 +142,8 @@ public:
     };
 
     //constructor
-    allocator(void) {}
+    allocator(uint8_t *_pb, size_t _pb_size) :
+        PolicyT(_pb, _pb_size) {}
 
     //copy constructor
     template<typename U,
