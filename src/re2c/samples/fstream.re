@@ -18,7 +18,9 @@ enum Token {
 void print_token(Token token) {
     switch(token) {
         case Token::ID:
-            printf("toke id\n");
+            printf("token id\n");
+        case Token::INTEGER:
+            printf("token interger\n");
         default:
             printf("other\n");
     }
@@ -43,12 +45,16 @@ static Token lex(std::ifstream &in)
 
 int main(int argc, char **argv)
 {
-    //std::ifstream in(stdin, std::ios::binary);
-    //if (in.fail()) return 2;
+    if(argc < 1) {
+        return 0;
+    }
+
+    std::ifstream in(argv[0], std::ios::binary);
+    if (in.fail()) return 2;
 
     Token token = Token::OTHER;
     do {
-        token = lex(stdin);
+        token = lex(in);
         print_token(token);
     } while(token != Token::END);
 
