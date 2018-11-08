@@ -1,0 +1,10 @@
+autom4te.cache/
+Makefile.in
+aclocal.m4
+configure
+compile
+config.h.in
+depcomp
+install-sh
+missing
+test-driver

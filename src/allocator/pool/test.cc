@@ -22,6 +22,7 @@ int main(void) {
     for(int i = 0; i < 10; i++) {
         std::thread([] () {
             uint8_t *local_buffer = (uint8_t*)malloc(1024);
+            printf("local buffer at: %p\n", local_buffer);
             /* not working
             std::set<Foo, std::less<Foo>, allocator<Foo, pool<Foo, local_buffer, 1024>>> foo;
             */
@@ -34,8 +35,6 @@ int main(void) {
             foo.insert(Foo(2));
             foo.insert(Foo(3));
 
-            using namespace std::chrono_literals;
-            std::this_thread::sleep_for(2s);
         }).detach();
     }
 
