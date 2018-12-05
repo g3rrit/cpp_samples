@@ -27,10 +27,10 @@ int main(void) {
             std::set<Foo, std::less<Foo>, allocator<Foo, pool<Foo, local_buffer, 1024>>> foo;
             */
 
-            allocator<Foo, pool<Foo>> a(local_buffer, 1024);
+            allocator<Foo, pool<void>> a(local_buffer, 1024);
             std::less<Foo> l;
 
-            std::set<Foo, std::less<Foo>, allocator<Foo, pool<Foo>>> foo(l, a);
+            std::set<Foo, std::less<Foo>, allocator<Foo, pool<void>>> foo(l, a);
 
             foo.insert(Foo(2));
             foo.insert(Foo(3));
